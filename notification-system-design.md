@@ -279,3 +279,92 @@ AND createdAt >= NOW() - INTERVAL '7 days';
 - Filters Placement notifications.
 - Retrieves notifications created in the last 7 days.
 - Returns unique student IDs.
+
+# Stage 4
+
+## Problem
+Currently, notifications are fetched from the database whenever a student loads a page.
+With:
+- 50,000 students
+- 5,000,000 notifications
+the database receives a large number of repeated read requests, causing:
+- High database load
+- Increased response time
+- Poor user experience
+---
+## Solution 1: Redis Cache
+Store recently accessed notifications in Redis.
+### Flow
+1. Student requests notifications.
+2. Check Redis Cache.
+3. If found, return cached notifications.
+4. Otherwise:
+   - Query database.
+   - Store result in Redis.
+   - Return response.
+### Advantages
+- Very fast reads
+- Reduces database load
+- Better response time
+### Tradeoffs
+- Additional infrastructure
+- Cache invalidation complexity
+- Memory consumption
+---
+## Solution 2: Pagination
+Instead of loading all notifications:
+GET /notifications?page=1&limit=20
+### Advantages
+- Smaller result sets
+- Faster queries
+- Reduced network traffic
+### Tradeoffs
+- Additional frontend handling
+- More API requests for older notifications
+---
+## Solution 3: WebSocket Notifications
+Instead of requesting notifications on every page load, maintain a WebSocket connection.
+### Flow
+1. User logs in.
+2. WebSocket connection established.
+3. New notifications pushed instantly.
+### Advantages
+- Real-time delivery
+- Eliminates frequent polling
+- Lower database traffic
+### Tradeoffs
+- More complex implementation
+- Connection management required
+---
+## Solution 4: Read Replicas
+Use:
+- Primary Database for writes
+- Replica Databases for reads
+### Advantages
+- Scales read operations
+- Reduces primary database load
+### Tradeoffs
+- Additional infrastructure cost
+- Replication lag
+---
+## Solution 5: Message Queue
+Use Kafka or RabbitMQ.
+### Flow
+1. Notification created.
+2. Added to queue.
+3. Worker processes notification.
+4. Notification delivered.
+### Advantages
+- Better scalability
+- Handles traffic spikes
+### Tradeoffs
+- Increased system complexity
+- Additional maintenance
+---
+## Recommended Architecture
+1. PostgreSQL as primary database
+2. Redis for caching
+3. Pagination for notification APIs
+4. WebSockets for real-time updates
+5. Read replicas for scaling reads
+This architecture minimizes database load while providing fast notification delivery and a better user experience.
