@@ -88,3 +88,114 @@ ws://localhost:8000/ws/notifications
   }
 }
 ```
+
+# Stage 2
+## Database Selection
+Recommended Database: PostgreSQL
+### Why PostgreSQL?
+1. Supports ACID transactions.
+2. Reliable for notification systems.
+3. Supports indexing for fast retrieval.
+4. Scales well with large datasets.
+5. Supports JSON fields if needed.
+---
+## Database Schema
+### Users Table
+| Column | Type | Description |
+|----------|---------|-------------|
+| id | UUID | Primary Key |
+| name | VARCHAR(100) | User Name |
+| email | VARCHAR(255) | Email Address |
+| created_at | TIMESTAMP | Creation Time |
+
+### Notifications Table
+
+| Column | Type | Description |
+|----------|---------|-------------|
+| id | UUID | Primary Key |
+| title | VARCHAR(255) | Notification Title |
+| message | TEXT | Notification Content |
+| category | VARCHAR(50) | Placement/Event/Result |
+| created_at | TIMESTAMP | Creation Time |
+
+### User_Notifications Table
+
+| Column | Type | Description |
+|----------|---------|-------------|
+| id | UUID | Primary Key |
+| user_id | UUID | Foreign Key |
+| notification_id | UUID | Foreign Key |
+| is_read | BOOLEAN | Read Status |
+| read_at | TIMESTAMP | Read Timestamp |
+
+---
+## SQL Queries
+### Create Notification
+INSERT INTO notifications
+(title, message, category)
+VALUES
+('Placement Drive',
+ 'Infosys recruitment starts tomorrow',
+ 'PLACEMENT');
+---
+### Get Notifications
+SELECT n.id,
+       n.title,
+       n.message,
+       un.is_read
+FROM notifications n
+JOIN user_notifications un
+ON n.id = un.notification_id
+WHERE un.user_id = :user_id
+ORDER BY n.created_at DESC;
+---
+### Get Notification By ID
+SELECT *
+FROM notifications
+WHERE id = :notification_id;
+---
+### Mark Notification As Read
+UPDATE user_notifications
+SET is_read = TRUE,
+    read_at = NOW()
+WHERE notification_id = :notification_id
+AND user_id = :user_id;
+---
+### Mark All Notifications As Read
+UPDATE user_notifications
+SET is_read = TRUE,
+    read_at = NOW()
+WHERE user_id = :user_id;
+---
+### Delete Notification
+DELETE FROM notifications
+WHERE id = :notification_id;
+---
+## Potential Challenges
+### 1. Large Number of Notifications
+Problem:
+Millions of notifications can slow queries.
+Solution:
+- Add indexes on user_id and created_at.
+- Use pagination.
+---
+### 2. High Read Traffic
+Problem:
+Users frequently check notifications.
+Solution:
+- Use Redis caching.
+- Cache recent notifications.
+---
+### 3. Real-Time Delivery
+Problem:
+Large number of WebSocket connections.
+Solution:
+- Use Redis Pub/Sub.
+- Use message queues.
+---
+### 4. Database Growth
+Problem:
+Storage size increases over time.
+Solution:
+- Archive old notifications.
+- Partition tables by date.
