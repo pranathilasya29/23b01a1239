@@ -199,3 +199,83 @@ Storage size increases over time.
 Solution:
 - Archive old notifications.
 - Partition tables by date.
+
+# Stage 3
+## Query Analysis
+### Existing Query
+```sql
+SELECT *
+FROM notifications
+WHERE studentID = 1042
+AND isRead = false
+ORDER BY createdAt DESC;
+```
+### Is this Query Accurate?
+Yes, the query is functionally correct because it retrieves all unread notifications for a specific student and orders them by creation time in descending order.
+However, it is not efficient for large datasets.
+---
+## Why is this Query Slow?
+The database contains:
+- 50,000 students
+- 5,000,000 notifications
+Without proper indexing, the database performs a full table scan to find matching records.
+The query performs:
+1. Filtering by studentID
+2. Filtering by isRead
+3. Sorting by createdAt DESC
+For millions of records this becomes expensive.
+### Computation Cost
+Without Index:
+O(N)
+where N = 5,000,000 rows
+The database may need to scan most rows before sorting.
+---
+## Optimization
+Create a Composite Index
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications(studentID, isRead, createdAt DESC);
+```
+### Optimized Query
+```sql
+SELECT *
+FROM notifications
+WHERE studentID = 1042
+AND isRead = FALSE
+ORDER BY createdAt DESC;
+```
+### Cost After Indexing
+Index Lookup:
+O(log N)
+Result Retrieval:
+O(K)
+where K is the number of matching notifications.
+This is significantly faster than a full table scan.
+---
+## Should We Add Indexes on Every Column?
+No.
+Adding indexes on every column is not a good practice.
+### Reasons
+1. Increased Storage Usage
+2. Slower Insert Operations
+3. Slower Update Operations
+4. Slower Delete Operations
+5. Many indexes may never be used
+### Best Practice
+Create indexes only on:
+- Frequently searched columns
+- Join columns
+- Sorting columns
+- Foreign key columns
+---
+## Query to Find Students Who Received Placement Notifications in Last 7 Days
+```sql
+SELECT DISTINCT studentID
+FROM notifications
+WHERE notificationType = 'Placement'
+AND createdAt >= NOW() - INTERVAL '7 days';
+```
+### Explanation
+- Filters Placement notifications.
+- Retrieves notifications created in the last 7 days.
+- Returns unique student IDs.
