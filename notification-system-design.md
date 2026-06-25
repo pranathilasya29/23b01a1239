@@ -368,3 +368,117 @@ Use Kafka or RabbitMQ.
 4. WebSockets for real-time updates
 5. Read replicas for scaling reads
 This architecture minimizes database load while providing fast notification delivery and a better user experience.
+
+# Stage 5
+## Problems with Current Implementation
+Current Pseudocode:
+```text
+function notify_all(student_ids, message):
+    for student_id in student_ids:
+        send_email(student_id, message)
+        save_to_db(student_id, message)
+        push_to_app(student_id, message)
+```
+### Issues
+1. Sequential Processing
+   - Processes one student at a time.
+   - Very slow for 50,000 students.
+2. No Retry Mechanism
+   - Failed emails are permanently lost.
+3. No Fault Tolerance
+   - If the service crashes midway, notifications stop.
+4. Tight Coupling
+   - Email, Database, and In-App notifications are dependent on each other.
+5. Poor Scalability
+   - Cannot efficiently handle large notification campaigns.
+---
+## What Happens If Email Fails For 200 Students?
+The current implementation does not provide any retry mechanism.
+As a result:
+- Some students receive notifications.
+- Some students do not receive notifications.
+- System becomes inconsistent.
+Failed notifications should be retried automatically.
+---
+## Recommended Solution
+Use:
+- PostgreSQL
+- Message Queue (Kafka/RabbitMQ)
+- Worker Services
+- Retry Queue
+- Dead Letter Queue (DLQ)
+---
+## Why Save To Database First?
+Notifications should first be saved in the database.
+Benefits:
+- Database becomes source of truth.
+- Notifications are never lost.
+- Failed deliveries can be retried.
+If email is sent first and the service crashes before database storage, there will be no record of the notification.
+---
+## Revised Pseudocode
+```text
+function notify_all(student_ids, message):
+    notification_id = create_notification(message)
+    for student_id in student_ids:
+        save_to_db(
+            notification_id,
+            student_id,
+            status="PENDING"
+        )
+        publish_to_queue({
+            notification_id,
+            student_id,
+            message
+        })
+worker process_notification(job):
+    try:
+        send_email(
+            job.student_id,
+            job.message
+        )
+        push_to_app(
+            job.student_id,
+            job.message
+        )
+        update_status(
+            job.notification_id,
+            job.student_id,
+            "SUCCESS"
+        )
+    except Exception:
+        retry_count += 1
+        if retry_count < 3:
+            send_to_retry_queue(job)
+        else:
+            send_to_dead_letter_queue(job)
+            update_status(
+                job.notification_id,
+                job.student_id,
+                "FAILED"
+            )
+```
+---
+## Advantages
+### Reliability
+- Notifications are stored before delivery.
+- Failed notifications can be retried.
+### Scalability
+- Multiple workers can process notifications simultaneously.
+### Fault Tolerance
+- System can recover after crashes.
+### Monitoring
+Status can be tracked as:
+- Pending
+- Success
+- Failed
+---
+## Tradeoffs
+### Pros
+- Reliable
+- Scalable
+- Fault tolerant
+### Cons
+- More infrastructure
+- More complexity
+- Additional maintenance
