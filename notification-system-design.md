@@ -482,3 +482,30 @@ Status can be tracked as:
 - More infrastructure
 - More complexity
 - Additional maintenance
+
+# Stage 6
+## Priority Inbox Approach
+Priority is determined using:
+1. Notification Type Weight
+   - Placement = 3
+   - Result = 2
+   - Event = 1
+2. Recency
+   - Newer notifications get higher priority.
+Priority Score:
+```text
+(Type Weight × 100) + Recency Score
+```
+Notifications are sorted by priority score and the top 10 unread notifications are displayed.
+## Maintaining Top 10 Efficiently
+Instead of sorting all notifications every time:
+- Use a Min Heap of size 10.
+- Keep only the current Top 10 notifications.
+- When a new notification arrives:
+  - Calculate its priority score.
+  - Compare with smallest item in heap.
+  - Replace if score is higher.
+Complexity:
+- Insert: O(log 10)
+- Retrieval: O(10)
+This is more efficient than sorting all notifications repeatedly.
